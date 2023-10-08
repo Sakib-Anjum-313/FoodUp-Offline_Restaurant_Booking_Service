@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import Swal from "sweetalert2";
 import { AuthContext } from "../../../../Context/AuthProvider";
+import { httpEditTableInfo, httpGetAllTables } from "../../../../Hooks/adminRequest";
 
 const EditTableInfo = () => {
   const { user } = useContext(AuthContext);
@@ -10,25 +11,16 @@ const EditTableInfo = () => {
   console.log(tableList);
 
   const handleDownload = () => {
-    fetch(`http://localhost:5000/resAdmin/allTableInfo/${user?.email}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setRow(data.Tables.length);
-        setTableList(data.Tables);
-        console.log(data.Tables);
-      });
+    httpGetAllTables(user?.email).then((data) => {
+      setRow(data.Tables.length);
+      setTableList(data.Tables);
+      console.log(data.Tables);
+    });
   };
 
   // uploading to db
   const handleUploadToDb = () => {
-    fetch(`http://localhost:5000/resAdmin/editTableInfo/${user?.email}`, {
-      method: "PUT",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(tableList),
-    })
-      .then((res) => res.json())
+    httpEditTableInfo(user?.email, tableList)
       .then((data) => {
         if (data.acknowledged) {
           Swal.fire({

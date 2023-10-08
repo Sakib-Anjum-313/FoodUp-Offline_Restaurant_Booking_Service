@@ -2,46 +2,104 @@ import React, { useContext, useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { AuthContext } from "../../../../Context/AuthProvider";
+import { httpAddAProduct, httpGetAllProduct, httpGetCategory, httpUploadCategory } from "../../../../Hooks/adminRequest";
 import AddCategoryModal from "./AddCategoryModal";
 import AddFoodModal from "./AddFoodModal";
 
 const MenuEdit = () => {
   const [categoryList, setCategoryList] = useState([]);
+  const [foodList, setFoodList] = useState([]);
   const { user } = useContext(AuthContext);
   const [uploaded, setUploaded] = useState(false);
   const [displayCategory, setDisplayCategory] = useState([]);
   const navigate = useNavigate();
 
-  //fetching category to db
+  /**************************
+    Fetching Category from DB 
+  ***************************/
 
   useEffect(() => {
-    fetch(
-      `http://localhost:5000/restaurantAdmin/menuEdit/category/${user.email}`
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        // console.log(data);
-        setCategoryList(data.FoodCategories);
-      });
-  }, [user.email, setCategoryList]);
+    httpGetAllProduct(user?.email).then((data) => {
+      console.log(data);
+      setFoodList(data);
+    });
 
-  // add new category to state
+    httpGetCategory(user?.email).then((data) => {
+      // console.log(data);
+      setCategoryList(data);
+    });
+  }, [user.email]);
+
+  //////////////////  Add New Category to State & Upload to DB    //////////////
+
   const handleAddCategory = (event) => {
     event.preventDefault();
     const form = event.target;
     const categoryName = form.categoryName.value;
 
     let newCategory = {
+      ResEmail: `${user?.email}`,
       CategoryName: categoryName,
-      FoodList: [],
     };
-    let newCategoryList = [...categoryList, newCategory];
-    setCategoryList(newCategoryList);
-    // console.log(newCategoryList);
+
+    httpUploadCategory(newCategory)
+      .then((data) => {
+        if (!data.errors) {
+          console.log(data);
+          let newCategoryItem = data;
+          newCategoryItem.View = 'Inactive';
+          let newCategoryList = [...categoryList, newCategoryItem];
+          console.log(newCategoryList);
+          setCategoryList(newCategoryList);
+        } else {
+          console.log(data);
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+
     form.reset();
   };
 
-  // add food to state
+  ///////////////////////   Handle New Food Display  ////////////////////////
+
+  const handleNewFoodDisplay = (foodItem) => {
+    let prevSelectedCategoryFoods = foodList?.filter(
+      (food) => food.WhichCategory === foodItem.WhichCategory
+    );
+    const updatedSelectedCategoryFoods = [
+      ...prevSelectedCategoryFoods,
+      foodItem,
+    ];
+    setDisplayCategory(updatedSelectedCategoryFoods);
+    navigate(`/restaurantAdmin/menuEdit/${foodItem.WhichCategory}`);
+  };
+
+  /////////////////////////   Handle Food Display  ////////////////////////
+
+  const handleCategoryDisplay = (CategoryName) => {
+    let selectedCategoryFoods = foodList?.filter(
+      (food) => food.WhichCategory === CategoryName
+    );
+    console.log(selectedCategoryFoods);
+    setDisplayCategory(selectedCategoryFoods);
+
+    let newCategoryList = [...categoryList];
+    
+    newCategoryList.forEach((category) => {
+      if (category.CategoryName === CategoryName) {
+        category.View = "Active";
+      } else {
+        category.View = "Inactive";
+      }
+    });
+    setCategoryList([...newCategoryList]);
+    navigate(`/restaurantAdmin/menuEdit/${CategoryName}`);
+  };
+
+  /////////////////////////   Add A Food to State  /////////////////////////////
+
   const handleAddFoodItem = (event) => {
     event.preventDefault();
     const form = event.target;
@@ -51,7 +109,8 @@ const MenuEdit = () => {
     const foodQuantity = form.foodQuantity.value;
     const whichCategory = form.whichCategory.value;
 
-    let foodDetails = {
+    let aNewFood = {
+      ResEmail: `${user?.email}`,
       FoodName: foodName,
       FoodImg: foodImg,
       FoodPrice: foodPrice,
@@ -60,69 +119,30 @@ const MenuEdit = () => {
       Availability: "Available",
     };
 
-    let newCategoryList = [];
-
-    categoryList.forEach((category) => {
-      if (category.CategoryName === whichCategory) {
-        category.FoodList.push(foodDetails);
-        newCategoryList.push(category);
+    httpAddAProduct(aNewFood).then((data) => {
+      // console.log(data);
+      if (data.acknowledged) {
+        const newFoodItem = data.data;
+        let newFoodList = [...foodList, newFoodItem];
+        setFoodList(newFoodList);
+        handleNewFoodDisplay(newFoodItem);
+        //  console.log(displayCategory);
       } else {
-        newCategoryList.push(category);
+        Swal.fire({
+          title: "Sorry!!!",
+          text: "Error occurs in server end!!! Try again",
+          icon: "error",
+        });
       }
-      setCategoryList(newCategoryList);
     });
-
-    // console.log(categoryList);
     form.reset();
     setUploaded(true);
   };
 
-  //handleSaveToDatabase
 
-  const handleSaveToDatabase = () => {
-    fetch(
-      `http://localhost:5000/restaurantAdmin/menuEdit/${user.email}`,
-      {
-        method: "PUT",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(categoryList),
-      }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        // console.log(data);
-        setUploaded(!uploaded);
-        if (data.acknowledged) {
-          Swal.fire({
-            title: "Wow",
-            text: "Menu Info Updated Successfully",
-            icon: "success",
-          });
-          console.log(data);
-        } else {
-          Swal.fire({
-            title: "Sorry!!!",
-            text: "Error Occurs!!! Try again",
-            icon: "error",
-          });
-        }
-      });
-  };
-
-  // handleCategoryDisplay
-
-  const handleCategoryDisplay = (CategoryName) => {
-    let selectedCategory = categoryList?.find(
-      (category) => category.CategoryName === CategoryName
-    );
-    console.log(selectedCategory);
-    setDisplayCategory(selectedCategory);
-    navigate(`/restaurantAdmin/menuEdit/${CategoryName}`);
-  };
-
-  // handle change product
+  /*************************** 
+      Update Product Info
+   ***************************/
 
   //event, foodItem, category
 
@@ -137,62 +157,62 @@ const MenuEdit = () => {
     foodItem.FoodQuantity = productNewQuantity;
     foodItem.Availability = productCurrentAvailability;
 
-
-
     category.FoodList.forEach((Food, desireFoodIndex) => {
-    if(Food.FoodName === foodItem.FoodName &&
-      Food.FoodPrice === foodItem.FoodPrice) {
-      category.FoodList.splice(desireFoodIndex, 1, foodItem);
+      if (
+        Food.FoodName === foodItem.FoodName &&
+        Food.FoodPrice === foodItem.FoodPrice
+      ) {
+        category.FoodList.splice(desireFoodIndex, 1, foodItem);
 
-      categoryList.forEach((singleCategory, index) => {
-        if (singleCategory.CategoryName === category.CategoryName) {
-          let newCategoryList = [...categoryList];
-          newCategoryList.splice(index, 1, category);
-          setCategoryList(newCategoryList);
-          setUploaded(true);
-          form.reset();
-        }
-      })
-         }
-  });
-
+        categoryList.forEach((singleCategory, index) => {
+          if (singleCategory.CategoryName === category.CategoryName) {
+            let newCategoryList = [...categoryList];
+            newCategoryList.splice(index, 1, category);
+            setCategoryList(newCategoryList);
+            setUploaded(true);
+            form.reset();
+          }
+        });
+      }
+    });
   };
 
-  // delete a food card  categoryList
-   const handleDeleteItem = (foodItem, currentDisplayCategory) => {
-     console.log(foodItem);
-     console.log(currentDisplayCategory);
+  ///////////////////////   Delete a food card  categoryList  ////////////////////////
 
-     currentDisplayCategory.FoodList.forEach((category, index) => {
-       if (
-         category.FoodName === foodItem.FoodName &&
-         category.FoodPrice === foodItem.FoodPrice
-       ) {
-         currentDisplayCategory.FoodList.splice(index, 1);
-         console.log(currentDisplayCategory);
-         let newCategoryList = [...categoryList];
-         
-         newCategoryList.forEach((foodCategory, index2) => {
-           if (
-             foodCategory.CategoryName === currentDisplayCategory.CategoryName
-           ) {
-             newCategoryList.splice(index2, 1, currentDisplayCategory);
-             setCategoryList(newCategoryList);
-             const newDisplayCategory = currentDisplayCategory;
-             setDisplayCategory(newDisplayCategory);
-             setUploaded(true);
-           }
-         });
-       }
-     });
-   };
+  const handleDeleteItem = (foodItem, currentDisplayCategory) => {
+    console.log(foodItem);
+    console.log(currentDisplayCategory);
+
+    currentDisplayCategory.FoodList.forEach((category, index) => {
+      if (
+        category.FoodName === foodItem.FoodName &&
+        category.FoodPrice === foodItem.FoodPrice
+      ) {
+        currentDisplayCategory.FoodList.splice(index, 1);
+        console.log(currentDisplayCategory);
+        let newCategoryList = [...categoryList];
+
+        newCategoryList.forEach((foodCategory, index2) => {
+          if (
+            foodCategory.CategoryName === currentDisplayCategory.CategoryName
+          ) {
+            newCategoryList.splice(index2, 1, currentDisplayCategory);
+            setCategoryList(newCategoryList);
+            const newDisplayCategory = currentDisplayCategory;
+            setDisplayCategory(newDisplayCategory);
+            setUploaded(true);
+          }
+        });
+      }
+    });
+  };
 
   return (
     <div>
       <div className="mt-10 ml-14 flex">
         <div>
           <span className="font-semibold mr-1">Step 1:</span>
-          <label htmlFor="add-category-modal" className="btn btn btn-success">
+          <label htmlFor="add-category-modal" className="btn btn bg-teal-300">
             + Add A New Category
           </label>
         </div>
@@ -210,46 +230,60 @@ const MenuEdit = () => {
           handleAddFoodItem={handleAddFoodItem}
           categoryList={categoryList}
         ></AddFoodModal>
-        <div>
-          <span className="font-semibold mr-1 ml-5">Step 3:</span>
-          <button
-            disabled={!uploaded}
-            onClick={handleSaveToDatabase}
-            className="btn btn-secondary ml-1"
-          >
-            Save To Database
-          </button>
-        </div>
       </div>
       <div className="ml-14 mt-6">
         <p>
           <span className="font-bold">Note:</span> If you want to{" "}
-          <span className="font-bold ml-1">add food</span> into
-          <span className="font-bold ml-1">same category</span> then just follow
-          <span className="font-bold"> Step: 2 & Step: 3</span> only.
+          <span className="font-bold ml-1">Add A Food</span> into
+          <span className="font-bold ml-1">Same Category</span> then just follow
+          <span className="font-bold"> Step: 2</span> only.
         </p>
       </div>
 
-      {/* category buttons */}
+      {/* *******************
+         Display category buttons 
+      **********************/}
 
-      <div className="mt-12 ml-14">
+      <div className="mt-12 ml-14 flex">
         {/* <Link to={`/restaurantAdmin/menuEdit/`}>
           <button className="btn btn-secondary btn-sm">All</button>
         </Link> */}
         {categoryList?.map((category, index1) => (
-          <button
-            key={index1}
-            onClick={() => {
-              handleCategoryDisplay(category.CategoryName);
-            }}
-            className="btn btn-primary btn-sm ml-4"
-          >
-            {category.CategoryName}
-          </button>
+          <>
+            <button
+              key={index1}
+              onClick={() => {
+                handleCategoryDisplay(category.CategoryName);
+              }}
+              className={` btn-sm ml-4 ${
+                category.View === "Active"
+                  ? "btn btn-warning"
+                  : "btn bg-lime-300"
+              }`}
+            >
+              {category.CategoryName}
+            </button>
+            <button className="btn btn-sm btn-square">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </>
         ))}
       </div>
 
-      {/* displaying category  here */}
+      {/* displaying Food Items  here */}
       <div>
         <Outlet
           context={[displayCategory, handleChangeProductInfo, handleDeleteItem]}

@@ -7,19 +7,13 @@ const CategoryCard = () => {
     useOutletContext();
   const [categoryData, setCategoryData] = useState([]);
 
-  // const [inputFields, setInputFields] = useState([
-  //   {
-  //     productPrice: "",
-  //     productQuantity: "",
-  //     productAvailability:''
-  //   },
-  // ]);
+ 
 
   useEffect(() => {
+    console.log(displayCategory);
     setCategoryData(displayCategory);
   }, [displayCategory]);
 
-  console.log(displayCategory);
 
   const handleChange = (event) => {
     let data = [];
@@ -35,7 +29,7 @@ const CategoryCard = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 mt-8 ml-14 gap-4 shadow-xl p-4 bg-slate-100 mr-14  justify-center rounded-xl">
-      {categoryData?.FoodList?.map((foodItem, indx) => (
+      {categoryData?.map((foodItem, indx) => (
         <div key={indx} className="">
           <div className="card w-fit bg-base-100 shadow-xl">
             <figure>

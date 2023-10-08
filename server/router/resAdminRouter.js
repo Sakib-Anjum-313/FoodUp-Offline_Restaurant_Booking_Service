@@ -7,22 +7,42 @@ const {
   myRestaurant,
   editTableInfo,
   allTableInfo,
-  updateTableInfo,
+  updateTableStatus,
+  addAProductCategory,
+  getAllCategories,
+  addANewProduct,
+  getAllProducts,
 } = require("../controller/resAdminController");
 
+
+
 // Res Admin Router
-// get methods
+
+/************************
+   GET Methods 
+*************************/
 router.get("/myRestaurant/:email", myRestaurant);
 router.get("/allTableInfo/:email", allTableInfo);
+router.get("/editMenu/getAllCategories/:ResEmail", getAllCategories);
+router.get("/editMenu/getAllProducts/:ResEmail", getAllProducts);
 
 
-// post methods
-// router.post("/addNewRestaurant", addNewRestaurant);
+/************************
+   POST Methods 
+*************************/
+router.post("/editMenu/uploadProductCategory", addAProductCategory);
+router.post("/editMenu/addANewProduct", addANewProduct);
 
-// put methods
+
+/************************
+   PUT Methods
+*************************/
 router.put("/editTableInfo/:email", editTableInfo);
-router.put("liveTableTracking/updateTable/:email", updateTableInfo);
+router.put("/liveTableTracking/updateTableStatus/:email", updateTableStatus);
 
-// delete methods
+
+/************************
+   Delete Methods 
+*************************/
 
 module.exports = router;

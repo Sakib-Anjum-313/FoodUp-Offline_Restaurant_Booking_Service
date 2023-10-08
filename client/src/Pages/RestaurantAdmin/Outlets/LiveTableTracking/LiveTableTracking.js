@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { AuthContext } from "../../../../Context/AuthProvider";
+import { httpGetAllTables, httpUpdateTableStatus } from "../../../../Hooks/adminRequest";
 import "./LivetableTracking.css";
 
 const LiveTableTracking = () => {
@@ -9,29 +10,21 @@ const LiveTableTracking = () => {
   const [update, setUpdate] = useState(false);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/resAdmin/allTableInfo/${user?.email}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setTableInformation(data.Tables);
-      });
+
+    httpGetAllTables(user?.email)
+      .then((data) => { setTableInformation(data.Tables) })
   }, [user?.email]);
 
-  console.log(tableInformation);
+  // console.log(tableInformation);
 
   // update tables to db
-  const handleUpdateTable = () => {
-    fetch(
-      `http://localhost:5000/resAdmin/liveTableTracking/updateTable/${user?.email}`,
-      {
-        method: "PUT",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(tableInformation),
-      }
-    )
-      .then((res) => res.json())
+  const handleUpdateTableStatus = () => {
+    
+    // console.log(tableInformation);
+
+    httpUpdateTableStatus(user?.email, tableInformation)
       .then((data) => {
+        console.log(data);
         if (data.acknowledged) {
           setUpdate(false);
           Swal.fire({
@@ -49,7 +42,9 @@ const LiveTableTracking = () => {
         }
         console.log(data);
       });
-  }
+  };
+
+
 
   // disable a table
   const handleDisable = (table, tablesInRow) => {
@@ -75,6 +70,8 @@ const LiveTableTracking = () => {
     });
   };
 
+
+  
   //available a table
 
   const handleAvailable = (table, tablesInRow) => {
@@ -105,7 +102,7 @@ const LiveTableTracking = () => {
       <div className="flex items-center relative mb-4">
         <div className="my-4 ">
           <button
-            onClick={handleUpdateTable}
+            onClick={handleUpdateTableStatus}
             disabled={!update}
             className="btn btn-active btn-secondary ml-6 "
           >
@@ -156,7 +153,7 @@ const LiveTableTracking = () => {
                     </label>
                     <ul
                       tabIndex={0}
-                      className={`dropdown-content menu  shadow rounded-box bg-slate-100 w-52 `}
+                      className={`z-40 dropdown-content menu  shadow rounded-box bg-slate-100 w-52 `}
                     >
                       <li>
                         <button
